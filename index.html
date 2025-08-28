@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuiz Interaktif - Cuaca</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f9ff; /* sky-50 */
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23bae6fd' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .quiz-option {
+            transition: all 0.2s ease-in-out;
+        }
+        .quiz-option:hover:not(:disabled) {
+            transform: scale(1.02);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        .correct {
+            background-color: #dcfce7 !important; /* green-100 */
+            border-color: #22c55e !important; /* green-500 */
+            color: #15803d; /* green-700 */
+        }
+        .incorrect {
+            background-color: #fee2e2 !important; /* red-100 */
+            border-color: #ef4444 !important; /* red-500 */
+            color: #b91c1c; /* red-700 */
+        }
+        .notification-modal {
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        #explanation-container {
+            animation: fadeIn 0.5s;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div id="quiz-container" class="w-full max-w-2xl mx-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg p-8">
+        
+        <!-- Skrin Mula -->
+        <div id="start-screen">
+            <h1 class="text-4xl font-bold text-center text-blue-600">Kuiz: Cuaca</h1>
+            <p class="text-center text-gray-600 mt-4 text-lg">Uji pemahaman anda tentang kosa kata cuaca dalam Bahasa Melayu.</p>
+            <div class="mt-8 w-full max-w-sm mx-auto">
+                <input type="text" id="player-name" placeholder="Sila masukkan nama anda" class="w-full p-3 border-2 border-gray-300 rounded-lg text-lg text-center mb-4">
+                <button onclick="startQuiz()" class="w-full bg-blue-600 text-white font-bold py-3 px-8 rounded-lg text-xl hover:bg-blue-700 transition-colors">Mula Kuiz</button>
+            </div>
+        </div>
+
+        <!-- Skrin Kuiz -->
+        <div id="quiz-screen" class="hidden">
+            <div class="flex justify-between items-center mb-4">
+                <div id="question-counter" class="text-gray-500 font-semibold"></div>
+                <div id="score-counter" class="text-blue-600 font-bold text-lg">Markah: 0</div>
+            </div>
+            <div id="question-container" class="mb-6">
+                <p id="question-text" class="text-2xl font-semibold text-gray-800"></p>
+                <div id="question-emoji" class="text-8xl text-center my-6"></div>
+            </div>
+            <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Pilihan jawapan akan dimasukkan di sini -->
+            </div>
+            <!-- Ruang Penerangan -->
+            <div id="explanation-container" class="hidden mt-6 p-4 bg-gray-50 rounded-lg">
+                <p id="explanation-text-ms" class="font-semibold text-gray-800"></p>
+                <p id="explanation-text-en" class="text-sm text-gray-600 italic mt-1"></p>
+            </div>
+            <div class="mt-8 text-right">
+                <button id="next-button" onclick="nextQuestion()" class="bg-gray-400 text-white font-bold py-2 px-6 rounded-lg hidden">Seterusnya</button>
+            </div>
+        </div>
+
+        <!-- Skrin Keputusan -->
+        <div id="result-screen" class="hidden text-center">
+            <h2 class="text-3xl font-bold text-gray-800">Keputusan Kuiz</h2>
+            <p id="result-text" class="text-5xl font-bold text-blue-600 my-6"></p>
+            <p id="result-feedback" class="text-xl text-gray-600"></p>
+            <div class="mt-8">
+                <button onclick="restartQuiz()" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg text-xl hover:bg-blue-700 transition-colors">Cuba Lagi</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notifikasi Jawapan Salah -->
+    <div id="notification-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="notification-modal bg-white p-8 rounded-lg shadow-xl text-center w-full max-w-sm">
+            <p id="notification-message" class="text-3xl font-bold text-red-500"></p>
+            <p class="text-lg text-gray-600 mt-2">Sila baca penerangan di bawah untuk memahami jawapan yang betul.</p>
+            <button onclick="closeNotification()" class="mt-6 bg-red-500 text-white font-bold py-2 px-8 rounded-lg hover:bg-red-600">Faham</button>
+        </div>
+    </div>
+
+    <script>
+        const quizData = [
+            { question: "Apakah cuaca yang digambarkan oleh emoji ini?", emoji: "☀️", options: ["Hujan", "Cerah", "Mendung", "Berangin"], answer: "Cerah", explanation_ms: "'Cerah' bermaksud langit terang dengan cahaya matahari.", explanation_en: "'Cerah' means a bright sky with sunlight." },
+            { question: "Pilih perkataan yang betul untuk cuaca ini.", emoji: "🌧️", options: ["Panas", "Berangin", "Hujan", "Cerah"], answer: "Hujan", explanation_ms: "'Hujan' ialah titisan air yang turun dari awan.", explanation_en: "'Hujan' is water droplets falling from clouds." },
+            { question: "Apabila langit kelabu dan gelap, cuaca adalah...", emoji: "☁️", options: ["Mendung", "Panas", "Ribut", "Salji"], answer: "Mendung", explanation_ms: "'Mendung' bermaksud langit dilitupi awan tebal.", explanation_en: "'Mendung' means the sky is covered with thick clouds." },
+            { question: "Isi tempat kosong: 'Angin bertiup kencang. Cuaca hari ini sangat ______.'", emoji: "💨", options: ["Panas", "Cerah", "Berangin", "Hujan"], answer: "Berangin", explanation_ms: "'Berangin' bermaksud terdapat banyak pergerakan udara atau angin.", explanation_en: "'Berangin' means there is a lot of air movement or wind." },
+            { question: "Emoji ini mewakili cuaca yang...", emoji: "🔥", options: ["Sejuk", "Panas", "Mendung", "Berangin"], answer: "Panas", explanation_ms: "'Panas' merujuk kepada suhu yang tinggi.", explanation_en: "'Panas' refers to a high temperature." },
+            { question: "Perkataan berlawan bagi 'panas' ialah...", emoji: "↔️", options: ["Sejuk", "Terik", "Hangat", "Lembap"], answer: "Sejuk", explanation_ms: "'Sejuk' adalah perkataan berlawanan untuk 'panas'.", explanation_en: "'Sejuk' is the opposite of 'panas'." },
+            { question: "Aktiviti manakah yang sesuai dilakukan semasa cuaca cerah?", emoji: "🏞️", options: ["Membaca buku di rumah", "Bermain bola di padang", "Menonton televisyen", "Tidur"], answer: "Bermain bola di padang", explanation_ms: "Bermain di padang adalah aktiviti luar yang sesuai semasa cuaca cerah.", explanation_en: "Playing on the field is a suitable outdoor activity during sunny weather." },
+            { question: "Apakah yang perlu anda bawa jika cuaca hujan?", emoji: "☂️", options: ["Topi", "Cermin mata hitam", "Payung", "Kipas"], answer: "Payung", explanation_ms: "Payung digunakan untuk melindungi diri daripada hujan.", explanation_en: "An umbrella is used to protect yourself from the rain." },
+            { question: "Ayat manakah yang betul?", emoji: "✍️", options: ["Hari ini cuaca panas.", "Cuaca panas hari ini.", "Panas hari ini cuaca.", "Ini hari cuaca panas."], answer: "Hari ini cuaca panas.", explanation_ms: "Struktur ayat yang betul ialah 'Subjek + Predikat'.", explanation_en: "The correct sentence structure is 'Subject + Predicate'." },
+            { question: "Apakah maksud 'mendung'?", emoji: "❓", options: ["Langit terang", "Langit berawan gelap", "Angin kuat", "Suhu tinggi"], answer: "Langit berawan gelap", explanation_ms: "'Mendung' menggambarkan keadaan langit yang dilitupi awan kelabu.", explanation_en: "'Mendung' describes a sky covered with grey clouds." },
+            { question: "Pilih emoji yang betul untuk 'berangin'.", emoji: "", options: ["☀️", "💨", "🌧️", "🔥"], answer: "💨", explanation_ms: "Emoji 💨 mewakili angin yang bertiup.", explanation_en: "The 💨 emoji represents blowing wind." },
+            { question: "Jika baju di ampaian lambat kering, kemungkinan cuaca...", emoji: "👕", options: ["Panas", "Mendung", "Berangin", "Cerah"], answer: "Mendung", explanation_ms: "Cuaca mendung kurang cahaya matahari, jadi pakaian lambat kering.", explanation_en: "Cloudy weather has less sunlight, so clothes dry slowly." },
+            { question: "'Sangat panas' juga boleh digambarkan sebagai cuaca...", emoji: "🌡️", options: ["Sejuk", "Nyaman", "Terik", "Dingin"], answer: "Terik", explanation_ms: "'Terik' bermaksud sangat panas, terutamanya tentang cahaya matahari.", explanation_en: "'Terik' means very hot, especially regarding sunlight." },
+            { question: "Apakah yang akan berlaku jika awan menjadi sangat berat dengan titisan air?", emoji: "💧", options: ["Angin akan bertiup", "Matahari akan keluar", "Hujan akan turun", "Langit akan cerah"], answer: "Hujan akan turun", explanation_ms: "Awan yang berat dengan air akan menyebabkan hujan.", explanation_en: "Clouds heavy with water will cause rain." },
+            { question: "Pilih susunan ayat yang betul.", emoji: "✍️", options: ["Sejuk sangat cuaca ini malam.", "Cuaca malam ini sangat sejuk.", "Malam ini sejuk sangat cuaca.", "Ini cuaca malam sangat sejuk."], answer: "Cuaca malam ini sangat sejuk.", explanation_ms: "Struktur ayat yang betul ialah 'Cuaca (subjek) + malam ini (penerangan) + sangat sejuk (predikat)'.", explanation_en: "The correct sentence structure is 'Weather (subject) + tonight (description) + very cold (predicate)'." },
+            { question: "Pilih susunan ayat yang betul.", emoji: "✍️", options: ["Mereka tidak bermain di luar kerana hujan.", "Di luar mereka tidak bermain kerana hujan.", "Hujan kerana tidak mereka bermain di luar.", "Bermain di luar tidak mereka kerana hujan."], answer: "Mereka tidak bermain di luar kerana hujan.", explanation_ms: "Ayat ini mengikut susunan 'Subjek + Predikat + Keterangan'.", explanation_en: "This sentence follows the 'Subject + Predicate + Explanation' structure." },
+            { question: "Pilih susunan ayat yang betul.", emoji: "✍️", options: ["Angin kencang ditiup pokok kelapa.", "Pokok kelapa ditiup angin kencang.", "Ditiup angin pokok kelapa kencang.", "Kencang pokok kelapa ditiup angin."], answer: "Pokok kelapa ditiup angin kencang.", explanation_ms: "Ini adalah struktur ayat pasif yang betul: 'Objek + Kata Kerja Pasif + Subjek'.", explanation_en: "This is the correct passive sentence structure: 'Object + Passive Verb + Subject'." },
+            { question: "Pilih susunan ayat yang betul.", emoji: "✍️", options: ["Matahari bersinar terang pada waktu tengah hari.", "Terang bersinar matahari pada waktu tengah hari.", "Waktu tengah hari pada matahari bersinar terang.", "Bersinar terang pada waktu tengah hari matahari."], answer: "Matahari bersinar terang pada waktu tengah hari.", explanation_ms: "Susunan yang paling lazim ialah 'Subjek (Matahari) + Predikat (bersinar terang) + Keterangan (pada waktu tengah hari)'.", explanation_en: "The most common structure is 'Subject (Matahari) + Predicate (bersinar terang) + Adverbial (pada waktu tengah hari)'." },
+            { question: "Pilih susunan ayat yang betul.", emoji: "✍️", options: ["Hujan akan turun tanda langit mendung.", "Langit mendung tanda hujan akan turun.", "Tanda hujan akan turun langit mendung.", "Turun akan hujan tanda langit mendung."], answer: "Langit mendung tanda hujan akan turun.", explanation_ms: "Ayat ini menunjukkan sebab (langit mendung) dan akibat (hujan akan turun).", explanation_en: "This sentence shows the cause (langit mendung) and effect (hujan akan turun)." },
+            { question: "Pilih susunan ayat yang betul.", emoji: "✍️", options: ["Selepas hujan muncul biasanya pelangi.", "Muncul pelangi biasanya selepas hujan.", "Pelangi biasanya muncul selepas hujan.", "Biasanya selepas hujan pelangi muncul."], answer: "Pelangi biasanya muncul selepas hujan.", explanation_ms: "Struktur ayat yang betul: 'Subjek (Pelangi) + Kata Keterangan (biasanya) + Predikat (muncul selepas hujan)'.", explanation_en: "The correct sentence structure: 'Subject (Pelangi) + Adverb (biasanya) + Predicate (muncul selepas hujan)'." }
+        ];
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let playerName = '';
+
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const notificationModal = document.getElementById('notification-modal');
+        const notificationMessage = document.getElementById('notification-message');
+
+        const questionCounter = document.getElementById('question-counter');
+        const scoreCounter = document.getElementById('score-counter');
+        const questionText = document.getElementById('question-text');
+        const questionEmoji = document.getElementById('question-emoji');
+        const optionsContainer = document.getElementById('options-container');
+        const nextButton = document.getElementById('next-button');
+        
+        const explanationContainer = document.getElementById('explanation-container');
+        const explanationTextMs = document.getElementById('explanation-text-ms');
+        const explanationTextEn = document.getElementById('explanation-text-en');
+
+        const resultText = document.getElementById('result-text');
+        const resultFeedback = document.getElementById('result-feedback');
+
+        function startQuiz() {
+            playerName = document.getElementById('player-name').value.trim();
+            if (!playerName) {
+                alert("Sila masukkan nama anda untuk memulakan kuiz.");
+                return;
+            }
+
+            startScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            currentQuestionIndex = 0;
+            score = 0;
+            showQuestion();
+        }
+
+        function showQuestion() {
+            nextButton.classList.add('hidden');
+            explanationContainer.classList.add('hidden');
+            const currentQuestion = quizData[currentQuestionIndex];
+            
+            questionCounter.textContent = `Soalan ${currentQuestionIndex + 1} / ${quizData.length}`;
+            scoreCounter.textContent = `Markah: ${score}`;
+            questionText.textContent = currentQuestion.question;
+            questionEmoji.textContent = currentQuestion.emoji;
+            
+            optionsContainer.innerHTML = '';
+            currentQuestion.options.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.className = 'quiz-option bg-white border-2 border-gray-200 text-gray-700 font-semibold p-4 rounded-lg text-lg hover:bg-gray-100 text-left';
+                button.onclick = () => selectAnswer(button, option);
+                optionsContainer.appendChild(button);
+            });
+        }
+
+        function selectAnswer(button, selectedOption) {
+            const currentQuestion = quizData[currentQuestionIndex];
+            const isCorrect = selectedOption === currentQuestion.answer;
+
+            if (isCorrect) {
+                score++;
+                button.classList.add('correct');
+            } else {
+                button.classList.add('incorrect');
+                showNotification();
+            }
+            
+            Array.from(optionsContainer.children).forEach(btn => {
+                if (btn.textContent === currentQuestion.answer) {
+                    btn.classList.add('correct');
+                }
+                btn.disabled = true;
+            });
+            
+            // Tunjuk penerangan
+            explanationTextMs.textContent = currentQuestion.explanation_ms;
+            explanationTextEn.textContent = currentQuestion.explanation_en;
+            explanationContainer.classList.remove('hidden');
+
+            scoreCounter.textContent = `Markah: ${score}`;
+            nextButton.classList.remove('hidden');
+        }
+
+        function nextQuestion() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < quizData.length) {
+                showQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            quizScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+            
+            resultText.textContent = `${score} / ${quizData.length}`;
+            
+            let feedback = '';
+            const percentage = (score / quizData.length) * 100;
+            if (percentage === 100) {
+                feedback = `Cemerlang, ${playerName}! Anda tahu semuanya!`;
+            } else if (percentage >= 60) {
+                feedback = `Bagus, ${playerName}! Teruskan usaha.`;
+            } else {
+                feedback = `Jangan putus asa, ${playerName}. Cuba lagi!`;
+            }
+            resultFeedback.textContent = feedback;
+        }
+
+        function restartQuiz() {
+            document.getElementById('player-name').value = '';
+            resultScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+        }
+
+        function showNotification() {
+            notificationMessage.textContent = `Ooops, salah ${playerName}!`;
+            notificationModal.classList.remove('hidden');
+        }
+
+        function closeNotification() {
+            notificationModal.classList.add('hidden');
+        }
+
+    </script>
+</body>
+</html>
+
